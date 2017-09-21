@@ -1,0 +1,2 @@
+scraping.py: contains the set of functions required for scraping analysis. To be converted to a class.
+analysis.py: example of analysis script for a particular case.
