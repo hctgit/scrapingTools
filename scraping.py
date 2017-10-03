@@ -7,7 +7,7 @@ import sys
 
 db=pytimber.LoggingDB()
 
-noise_level = 0.0
+noise_level = 1e-6
 
 def convertTime(t0):
     pattern = '%d.%m.%Y %H:%M:%S'
@@ -72,13 +72,13 @@ def getMaxIB(t01,t02,beam):
     ib1_0 = max(vv_IB)
     return ib1_0
 
-def getBackground(t02):
+def getBackground(t02,BLM):
     t2 = convertTime(t02) 
-    t1 = t2 - 20.0
-    BLMTL="BLMTI.06L7.B1E10_TCP.C6L7.B1:LOSS_RS09"
-    data=db.get([BLMTL],t1,t2)
-    tt_BLM,vv_BLM = data[BLMTL]
+    t1 = t2 - 60.0
+    data=db.get(BLM,t1,t2)
+    tt_BLM,vv_BLM = data[BLM]
     backg = np.mean(vv_BLM)
+    print "Noise level =", backg
     return backg
 
 def plotTCPpos(t01,t02,col):
@@ -89,14 +89,15 @@ def plotTCPpos(t01,t02,col):
     plotTCPpos = plt.plot_date(epoch2num(tt_TCPpos+2*3600), vv_TCPpos,'-', label=col)
     return plotTCPpos
 
-def matchTCPvsBLM(t01,t02,col,BLM,beam,TCPcenter,sigma):
+def matchTCPvsBLM(t01,t02,col,BLM,beam,TCPcenter,sigma,colInitPos):
     tt_TCP, vv_TCP, tt_BLM, vv_BLM = getTimberData(t01,t02,col,BLM)
+    noise_level = getBackground(t01,BLM)
     max_BLM = []
     BLM = []
     max_time = []
     TCP_pos = []
     ib1_0 = getMaxIB(t01,t02,beam)
-    noise_level = getBackground(t01)
+
 
     int0 = getIntensity(t01,beam)
     intf = getIntensity(t02,beam)
@@ -109,8 +110,8 @@ def matchTCPvsBLM(t01,t02,col,BLM,beam,TCPcenter,sigma):
 
     for i in range(len(tt_BLM)-1):
         if (vv_BLM[i-1]<vv_BLM[i] and vv_BLM[i]>vv_BLM[i+1]):
-            #max_BLM.append(vv_BLM[i]-noise_level)
-	    max_BLM.append(vv_BLM[i])
+            max_BLM.append(vv_BLM[i]-noise_level)
+	    #max_BLM.append(vv_BLM[i])
             max_time.append(tt_BLM[i])
             for l in range(len(tt_TCP)-1):
                 if (tt_BLM[i]>tt_TCP[l] and tt_BLM[i]<tt_TCP[l+1]):
@@ -126,16 +127,16 @@ def matchTCPvsBLM(t01,t02,col,BLM,beam,TCPcenter,sigma):
     for i in range(len(TCP_pos)):
         sigmaConv = (2.*(TCP_pos[i] - TCPcenter)/sigma)
 	#print TCP_pos[i], sigmaConv
-        if (sigmaConv < 4.8):
-            TCP_pos_sigma.append(sigmaConv)
-            TCP_pos_mm.append(TCP_pos[i])
-            cummulative += max_BLM[i]
-            #integr.append(1.0 - (int0 - cummulative/calFact)/int0)
-            #integr.append(cummulative/calFact/int0)
-            #integr.append(cummulative)
-	    integr.append(max_BLM[i]/calFact)
-            #BLM.append(max_BLM[i]/calFact/ib1_0)
-	    BLM.append(max_BLM[i])
+        if (abs(sigmaConv) < colInitPos):
+        	TCP_pos_sigma.append(sigmaConv)
+            	TCP_pos_mm.append(TCP_pos[i])
+            	cummulative += max_BLM[i]
+            	#integr.append(1.0 - (int0 - cummulative/calFact)/int0)
+            	integr.append(cummulative/calFact/int0)
+            	#integr.append(cummulative)
+	    	#integr.append(max_BLM[i]/calFact)
+            	#BLM.append(max_BLM[i]/calFact/ib1_0)
+		BLM.append(max_BLM[i])
 
     return TCP_pos_sigma, BLM, integr
 
